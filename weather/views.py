@@ -96,11 +96,21 @@ def index(request):
                     'day_or_night': day_or_night,
                     'lat': lat,  # Add latitude for Google Maps
                     'lon': long,  # Add longitude for Google Maps
+                    'rain_probability': str(json_data.get('rain', {}).get('1h', 0)) + '%' if 'rain' in json_data else '0%',  # Add rain probability
+                    'feels_like': str(int(json_data['main']['feels_like']) - int(273.15)) + ' °C', # Add feels like temperature
                 }
                 date_time = resp_json.get("formatted")
-                date_time = str(date_time)
-                date = date_time[:10]
-                time = date_time[11:]
+                if date_time:
+                    # Parse the datetime string from timezonedb.com
+                    local_dt_obj = datetime.strptime(date_time, '%Y-%m-%d %H:%M:%S')
+                    # Format date to dd-mm-yyyy
+                    date = local_dt_obj.strftime('%d-%m-%Y')
+                    # Format time to 12-hour clock with AM/PM
+                    time = local_dt_obj.strftime('%I:%M:%S %p')
+                else:
+                    # Fallback to current UTC time if timezone API doesn't provide formatted time
+                    date = datetime.now().strftime('%d-%m-%Y')
+                    time = datetime.now().strftime('%I:%M:%S %p')
 
             except urllib.error.HTTPError as e:
                 if e.code == 404:

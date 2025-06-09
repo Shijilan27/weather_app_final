@@ -43,6 +43,7 @@
         background: rgba(0, 0, 0, 0.25) !important;
         color: #fff !important;
         box-shadow: 0 4px 32px rgba(0,0,0,0.15);
+        position: relative;
     }
     body.Day .detail-item,
     body.Morning .detail-item,
@@ -159,6 +160,7 @@
         backdrop-filter: blur(10px);
         border: 1px solid rgba(255, 255, 255, 0.2);
         padding: 2.5rem;
+        position: relative;
     }
 
     body.Day .weather-card {
@@ -668,6 +670,83 @@
         /* 12 rays, 360/12 = 30deg apart */
         filter: blur(0.5px) contrast(1.2);
     }
+
+    /* Rain effect styles */
+    .rain {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden; /* Ensure rain doesn't go beyond container */
+        pointer-events: none;
+        z-index: 3; /* Above clouds but below main content */
+        display: none; /* Hidden by default */
+    }
+
+    .rain-drop {
+        position: absolute;
+        background: linear-gradient(to bottom, rgba(173, 216, 230, 0.8), rgba(173, 216, 230, 0.4)); /* Light blue to transparent */
+        width: 1px;
+        height: 10px; /* Length of the raindrop */
+        animation: rain-fall linear infinite;
+        opacity: 0;
+    }
+
+    @keyframes rain-fall {
+        0% {
+            transform: translateY(-100px); /* Start above visible area */
+            opacity: 0;
+        }
+        10% {
+            opacity: 1;
+        }
+        90% {
+            opacity: 1;
+        }
+        100% {
+            transform: translateY(100vh); /* Fall past the bottom */
+            opacity: 0;
+        }
+    }
+
+    /* Snow effect styles */
+    .snow {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        pointer-events: none;
+        z-index: 3;
+        display: none;
+    }
+
+    .snow-flake {
+        position: absolute;
+        background: #fff;
+        border-radius: 50%;
+        animation: snow-fall linear infinite;
+        opacity: 0;
+    }
+
+    @keyframes snow-fall {
+        0% {
+            transform: translateY(-50px);
+            opacity: 0;
+        }
+        10% {
+            opacity: 1;
+        }
+        90% {
+            opacity: 1;
+        }
+        100% {
+            transform: translateY(100vh);
+            opacity: 0;
+        }
+    }
 </style>
 </head>
 <body class="{{ time_of_day }}{% if time_of_day == 'Morning' or time_of_day == 'Afternoon' or time_of_day == 'Evening' %} Day{% endif %}">
@@ -680,6 +759,8 @@
         <div class="cloud cloud5"><img src="/static/cloud.png" alt="cloud"></div>
         <div class="sun" id="sun"></div>
         <div class="moon" id="moon"></div>
+        <div class="rain" id="rainEffect"></div>
+        <div class="snow" id="snowEffect"></div>
     </div>
 
     <nav class="navbar">
@@ -722,7 +803,21 @@
                     <div class="text-center">
                         <img src="{{ data.icon_url }}" alt="Weather Icon" class="weather-icon">
                         <div class="weather-temp">{{ data.temp }}</div>
-                        <p class="weather-desc">{{ data.desc }}</p>
+                        <p class="weather-desc mb-4">{{ data.desc }}</p>
+                    </div>
+
+                    <!-- Rain Probability Box (positioned absolutely) -->
+                    <div class="detail-item" style="position: absolute; top: 120px; right: 20px; padding: 1rem; background: rgba(255, 255, 255, 0.1); border-radius: 10px; width: 150px; text-align: center;">
+                        <i class="fas fa-cloud-rain text-primary mb-1"></i>
+                        <p class="mb-0" style="font-size: 0.9rem;">Rain Probability</p>
+                        <strong style="font-size: 1.2rem;">{{ data.rain_probability }}</strong>
+                    </div>
+
+                    <!-- Feels Like Box (positioned absolutely below Rain Probability) -->
+                    <div class="detail-item" style="position: absolute; top: 260px; right: 20px; padding: 1rem; background: rgba(255, 255, 255, 0.1); border-radius: 10px; width: 150px; text-align: center;">
+                        <i class="fas fa-thermometer-half text-danger mb-1"></i>
+                        <p class="mb-0" style="font-size: 0.9rem;">Feels Like</p>
+                        <strong style="font-size: 1.2rem;">{{ data.feels_like }}</strong>
                     </div>
 
                     <!-- UpdatedDateTime Display -->
@@ -859,6 +954,25 @@
     {% endif %}
 
     <script>
+        // Function to create raindrops
+        function createRain() {
+            const rainEffect = document.getElementById('rainEffect');
+            if (!rainEffect) return;
+
+            // Clear existing raindrops before creating new ones
+            rainEffect.innerHTML = '';
+
+            const numberOfDrops = 100; // Adjust as needed
+            for (let i = 0; i < numberOfDrops; i++) {
+                const drop = document.createElement('div');
+                drop.className = 'rain-drop';
+                drop.style.left = `${Math.random() * 100}%`;
+                drop.style.animationDuration = `${1 + Math.random() * 2}s`; // 1 to 3 seconds
+                drop.style.animationDelay = `${Math.random() * 3}s`; // Staggered start
+                rainEffect.appendChild(drop);
+            }
+        }
+
         // Initialize tabs
         document.addEventListener('DOMContentLoaded', function() {
             // Get all tab links
@@ -880,10 +994,7 @@
                 });
             });
         });
-    </script>
 
-    <script>
-        // Create stars
         function createStars() {
             const stars = document.getElementById('stars');
             const numberOfStars = 200;
@@ -910,31 +1021,6 @@
                 
                 stars.appendChild(star);
             }
-        }
-
-        // Create and manage clouds
-        function createCloud() {
-            if (!document.body.classList.contains('Day')) return;
-            
-            const cloud = document.createElement('div');
-            const sizes = ['small', 'medium', 'large'];
-            const size = sizes[Math.floor(Math.random() * sizes.length)];
-            cloud.className = `cloud ${size}`;
-            
-            // Random vertical position
-            const top = Math.random() * 70; // Keep clouds in top 70% of screen
-            cloud.style.top = `${top}%`;
-            
-            // Random animation duration
-            const duration = 30 + Math.random() * 30;
-            cloud.style.animationDuration = `${duration}s`;
-            
-            document.querySelector('.celestial-container').appendChild(cloud);
-            
-            // Remove cloud after animation
-            setTimeout(() => {
-                cloud.remove();
-            }, duration * 1000);
         }
 
         function getTimeOfDay(hours) {
@@ -998,7 +1084,6 @@
             }
         }
 
-        // Initialize everything on load
         document.addEventListener('DOMContentLoaded', () => {
             createStars();
             
@@ -1007,12 +1092,51 @@
                 updateCelestialPosition(timeElement.textContent);
             }
 
-            // Create clouds periodically if it's day time
-            if (document.body.classList.contains('Morning') || document.body.classList.contains('Afternoon') || document.body.classList.contains('Evening')) {
-                createCloud();
-                setInterval(createCloud, 5000); // New cloud every 5 seconds
+            // Check weather description for rain and trigger rain effect
+            const weatherDescElement = document.querySelector('.weather-desc');
+            const rainEffect = document.getElementById('rainEffect');
+            const snowEffect = document.getElementById('snowEffect');
+
+            if (weatherDescElement && rainEffect && snowEffect) {
+                const description = weatherDescElement.textContent.toLowerCase();
+                
+                // Handle rain effect
+                if (description.includes('rain') || description.includes('drizzle') || description.includes('shower')) {
+                    rainEffect.style.display = 'block';
+                    createRain();
+                } else {
+                    rainEffect.style.display = 'none';
+                }
+
+                // Handle snow effect
+                if (description.includes('snow') || description.includes('sleet') || description.includes('flurries')) {
+                    snowEffect.style.display = 'block';
+                    createSnow();
+                } else {
+                    snowEffect.style.display = 'none';
+                }
             }
         });
+
+        // Function to create snowflakes
+        function createSnow() {
+            const snowEffect = document.getElementById('snowEffect');
+            if (!snowEffect) return;
+
+            snowEffect.innerHTML = ''; // Clear existing snowflakes
+
+            const numberOfFlakes = 50; // Adjust as needed
+            for (let i = 0; i < numberOfFlakes; i++) {
+                const flake = document.createElement('div');
+                flake.className = 'snow-flake';
+                flake.style.left = `${Math.random() * 100}%`;
+                flake.style.width = `${1 + Math.random() * 2}px`; // Size between 1px and 3px
+                flake.style.height = flake.style.width; // Make it round
+                flake.style.animationDuration = `${3 + Math.random() * 5}s`; // 3 to 8 seconds
+                flake.style.animationDelay = `${Math.random() * 5}s`; // Staggered start
+                snowEffect.appendChild(flake);
+            }
+        }
 
         // Update positions on window resize
         window.addEventListener('resize', () => {
