@@ -1,4 +1,5 @@
 Django
 requests
 gunicorn
-whitenoise 
+whitenoise
+pytz 
