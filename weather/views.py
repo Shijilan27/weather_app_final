@@ -5,11 +5,15 @@ from datetime import datetime, timezone
 import requests
 import urllib.parse
 import pytz
+import os
 
 def get_news(city, country_code):
     try:
         # Using NewsAPI to get local news
-        news_api_key = "f1d407ba55d04b089e355373cf1708f5"  # Updated NewsAPI key
+        news_api_key = os.environ.get("NEWS_API_KEY")  # Read from environment variable
+        if not news_api_key:
+            print("NEWS_API_KEY environment variable not set.")
+            return None
         # Include both city and country in the search for more relevant results
         query = f"{city} {country_code}"
         encoded_query = urllib.parse.quote(query)
@@ -51,13 +55,26 @@ def index(request):
         city = request.POST['city']
         if city:
             try:
+                openweather_api_key = os.environ.get("OPENWEATHER_API_KEY") # Read from environment variable
+                if not openweather_api_key:
+                    print("OPENWEATHER_API_KEY environment variable not set.")
+                    error_message = "Weather API key not configured."
+                    return render(request, 'index.html', {'error_message': error_message})
+
                 encoded_city = urllib.parse.quote(city)
-                res = urllib.request.urlopen('https://api.openweathermap.org/data/2.5/weather?q='+encoded_city+'&appid=4843294ed54d8db19afda2ecfd556d58').read()
+                res = urllib.request.urlopen(f'https://api.openweathermap.org/data/2.5/weather?q={encoded_city}&appid={openweather_api_key}').read()
                 json_data = json.loads(res)
-                api_key = 'GQjHMX4tvtHatHs08b3+EQ==XmNODG7RykC4hzJP'
+                
                 lat = json_data['coord']['lat']
                 long = json_data['coord']['lon']
-                time_url = "http://api.timezonedb.com/v2.1/get-time-zone?key=H3E525G4N9Q2&format=json&by=position&lat={}&lng={}".format(lat,long)
+
+                timezonedb_api_key = os.environ.get("TIMEZONEDB_API_KEY") # Read from environment variable
+                if not timezonedb_api_key:
+                    print("TIMEZONEDB_API_KEY environment variable not set.")
+                    error_message = "Timezone API key not configured."
+                    return render(request, 'index.html', {'error_message': error_message})
+
+                time_url = f"http://api.timezonedb.com/v2.1/get-time-zone?key={timezonedb_api_key}&format=json&by=position&lat={lat}&lng={long}"
                 resp = requests.get(time_url)
                 resp_json = resp.json()
                 icon_code = json_data['weather'][0]['icon']
@@ -128,6 +145,6 @@ def index(request):
         'date': date,
         'time': time,
         'news_articles': news_articles,
-        'google_maps_api_key': 'AIzaSyBzdYVLbv2_z2OAm7cDaGPyRrkjXZteXWM',  # Updated Google Maps API key
+        'google_maps_api_key': os.environ.get('GOOGLE_MAPS_API_KEY'),  # Read from environment variable
         'time_of_day': time_of_day
     })   
